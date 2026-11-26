@@ -26,4 +26,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(Pose.stand.tip), findsOneWidget);
   });
+  testWidgets('可滚动选中台阶错层坐并查看下一步', (tester) async {
+    await tester.pumpWidget(const PoseDemo(demo: true));
+    await tester.tap(find.byTooltip('选择姿势'));
+    await tester.pumpAndSettle();
+    final last = find.text('台阶错层坐');
+    await tester.scrollUntilVisible(
+      last.hitTestable(),
+      180,
+      scrollable: find.descendant(
+        of: find.byType(GridView),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(last);
+    await tester.pumpAndSettle();
+    expect(find.text(Pose.anns12.tip), findsOneWidget);
+    await tester.tap(find.text(Pose.anns12.tip));
+    await tester.pump();
+    expect(find.text(Pose.anns12.steps[1]), findsOneWidget);
+  });
 }
