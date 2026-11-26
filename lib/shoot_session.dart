@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
 
@@ -37,6 +39,9 @@ class ShootSession extends ChangeNotifier with WidgetsBindingObserver {
           device,
           ResolutionPreset.high,
           enableAudio: false,
+          imageFormatGroup: Platform.isIOS
+              ? ImageFormatGroup.bgra8888
+              : ImageFormatGroup.yuv420,
         );
         await next.initialize();
         if (_closed || revision != _revision) {
