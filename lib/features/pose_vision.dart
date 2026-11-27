@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -177,4 +178,118 @@ String compareRig(
   return count < 5
       ? '请让更多关节进入画面'
       : '动作匹配 ${((1 - sum / count) * 100).round()}% · $hint';
+}
+
+String matchPeople(
+  List<Rig> targets,
+  List<Rig> observed,
+  double aspect,
+  double cameraAspect, {
+  required bool mirror,
+  required bool previewMirror,
+  required double angle,
+}) {
+  String compare(Rig target, Rig person) => compareRig(
+    target,
+    person,
+    aspect,
+    cameraAspect,
+    flip: mirror ^ previewMirror,
+    angle: previewMirror ? -angle : angle,
+  );
+  if (targets.length == 1) {
+    return observed.isEmpty
+        ? '请让身体进入画面'
+        : compare(targets.single, observed.first);
+  }
+  if (observed.length < 2) return '已识别 ${observed.length}/2 人 · 请两人同时入镜';
+  Offset? center(Rig r) {
+    final pts = [
+      'lh',
+      'rh',
+      'ls',
+      'rs',
+    ].map((k) => r[k]).whereType<Offset>().toList();
+    return pts.length < 2
+        ? null
+        : pts.reduce((a, b) => a + b) / pts.length.toDouble();
+  }
+
+  final a = center(observed[0]), b = center(observed[1]);
+  if (a == null || b == null || (a.dx - b.dx).abs() < .06) {
+    return '请两人稍微分开，让肩膀和腰部可见';
+  }
+  double targetX(Rig r) {
+    final p = center(r)! - const Offset(.5, .5);
+    return p.dx * aspect * (mirror ? -1 : 1) * math.cos(angle) -
+        p.dy * math.sin(angle);
+  }
+
+  final leftTarget = targetX(targets[0]) < targetX(targets[1]) ? 0 : 1;
+  final leftPerson = ((a.dx < b.dx) ^ previewMirror) ? 0 : 1;
+  String side(String label, int t, int p) =>
+      '$label · ${compare(targets[t], observed[p]).replaceFirst('动作匹配 ', '')}';
+  return [
+    side('左位', leftTarget, leftPerson),
+    side('右位', 1 - leftTarget, 1 - leftPerson),
+  ].join('\n');
+}
+
+/// Tries each side of the frame when the full-frame pass misses a partner.
+/// Coordinates from each crop are mapped back into the shared camera frame.
+Future<List<Rig>> recoverPartners(
+  VisionImage image,
+  List<Rig> found,
+  PoseLandmarker detector,
+) async {
+  final width = image.width!, height = image.height!, bytes = image.pixels!;
+  final people = [...found];
+  double? torso(Rig rig) {
+    final points = [
+      'ls',
+      'rs',
+      'lh',
+      'rh',
+    ].map((k) => rig[k]?.dx).whereType<double>().toList();
+    return points.length < 2
+        ? null
+        : points.reduce((a, b) => a + b) / points.length;
+  }
+
+  for (final left in [true, false]) {
+    final centers = people.map(torso).whereType<double>();
+    if (centers.any((x) => left ? x < .47 : x > .53)) continue;
+    final start = left ? 0 : (width * .46).floor(),
+        end = left ? (width * .54).ceil() : width;
+    final size = end - start, pixels = Uint8List(size * height * 3);
+    for (int y = 0; y < height; y++) {
+      pixels.setRange(
+        y * size * 3,
+        (y + 1) * size * 3,
+        bytes,
+        (y * width + start) * 3,
+      );
+    }
+    final result = await detector.detect(
+      VisionImage.fromPixels(
+        pixels: pixels,
+        width: size,
+        height: height,
+        format: VisionPixelFormat.rgb,
+      ),
+    );
+    if (result.poseLandmarks.isEmpty) continue;
+    final rig = visibleRig(
+      result.poseLandmarks.first,
+    ).map((k, v) => MapEntry(k, Offset((start + v.dx * size) / width, v.dy)));
+    final x = torso(rig);
+    if (x == null ||
+        (left ? x > .52 : x < .48) ||
+        centers.any((other) => (other - x).abs() < .13)) {
+      continue;
+    }
+    people.add(rig);
+    if (people.length >= 2) break;
+  }
+  return people;
 }

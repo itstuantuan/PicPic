@@ -62,13 +62,13 @@ class LiveGuide extends StatefulWidget {
   const LiveGuide({
     super.key,
     required this.camera,
-    required this.reference,
+    required this.references,
     required this.aspect,
     required this.flip,
     required this.angle,
   });
   final CameraController camera;
-  final Rig reference;
+  final List<Rig> references;
   final double aspect, angle;
   final bool flip;
   @override
@@ -81,7 +81,7 @@ class LiveGuideState extends State<LiveGuide> {
   int revision = 0;
   final clock = Stopwatch()..start();
   int last = -1000;
-  PoseLandmarker? model;
+  PoseLandmarker? model, cropModel;
   Future<void>? processing;
   Future<void> serial = Future.value();
   void toggle() {
@@ -98,6 +98,7 @@ class LiveGuideState extends State<LiveGuide> {
           PoseLandmarkerOptions(
             model: VisionModels.poseLandmarker,
             runningMode: RunningMode.video,
+            numPoses: widget.references.length,
           ),
         );
         if (closed || id != revision) {
@@ -145,6 +146,9 @@ class LiveGuideState extends State<LiveGuide> {
     final old = model;
     model = null;
     await old?.dispose();
+    final crop = cropModel;
+    cropModel = null;
+    await crop?.dispose();
   }
 
   void fail(Object e, int id) {
@@ -180,21 +184,23 @@ class LiveGuideState extends State<LiveGuide> {
         timestampMilliseconds: last,
       );
       if (closed || id != revision) return;
-      final rig = result.poseLandmarks.isEmpty
-          ? <String, Offset>{}
-          : visibleRig(result.poseLandmarks.first);
-      final message = rig.isEmpty
-          ? '请让身体进入画面'
-          : compareRig(
-              widget.reference,
-              rig,
-              widget.aspect,
-              image.width! / image.height!,
-              flip: widget.flip ^ (front && Platform.isAndroid),
-              angle: (front && Platform.isAndroid)
-                  ? -widget.angle
-                  : widget.angle,
-            );
+      var people = result.poseLandmarks.map(visibleRig).toList();
+      if (widget.references.length == 2 && people.length < 2) {
+        cropModel ??= await PoseLandmarker.create(
+          PoseLandmarkerOptions(model: VisionModels.poseLandmarker),
+        );
+        people = await recoverPartners(image, people, cropModel!);
+        if (closed || id != revision) return;
+      }
+      final message = matchPeople(
+        widget.references,
+        people,
+        widget.aspect,
+        image.width! / image.height!,
+        mirror: widget.flip,
+        previewMirror: front && Platform.isAndroid,
+        angle: widget.angle,
+      );
       if (message != status) setState(() => status = message);
     } catch (e) {
       fail(e, id);

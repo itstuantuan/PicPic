@@ -353,25 +353,9 @@ class CreatePage extends StatelessWidget {
       padding: inset,
       children: [
         entry(Icons.accessibility_new, '自定义姿势', () => c.push('/custom')),
-        for (final (title, body, icon) in [
-          ('照片 Studio', '风格编辑和生成历史需要云端图像服务。当前尚未配置。', Icons.photo_filter),
-          ('场景推荐', '自动识别需要视觉模型，目前可按场景浏览。', Icons.landscape_outlined),
-        ])
-          Card(
-            child: ExpansionTile(
-              leading: Icon(icon),
-              title: Text(title),
-              children: [
-                Padding(padding: const EdgeInsets.all(16), child: Text(body)),
-                if (title == '场景推荐')
-                  TextButton(
-                    onPressed: () =>
-                        c.push('/browse?filter=${Uri.encodeComponent('街道')}'),
-                    child: const Text('浏览街道姿势'),
-                  ),
-              ],
-            ),
-          ),
+        entry(Icons.photo_filter, '照片 Studio', () => c.push('/ai/edit')),
+        entry(Icons.landscape_outlined, '场景推荐', () => c.push('/ai/scene')),
+        entry(Icons.history, '生成历史', () => c.push('/ai/history')),
       ],
     ),
   );
@@ -405,6 +389,7 @@ class ProfilePage extends ConsumerWidget {
           ),
           entry(Icons.accessibility_new, '我的自定义姿势', () => c.push('/custom')),
           entry(Icons.collections_outlined, '我的照片', () => c.push('/photos')),
+          entry(Icons.history, 'AI 生成历史', () => c.push('/ai/history')),
           entry(Icons.event_note, '拍摄计划', () => c.push('/plans')),
           entry(Icons.settings_outlined, '设置', () => c.push('/settings')),
         ],

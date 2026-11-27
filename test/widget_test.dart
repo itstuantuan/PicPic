@@ -1,3 +1,4 @@
+import 'package:picpic/features/cloud_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:picpic/features/notebook.dart';
 import 'package:picpic/main.dart';
@@ -15,6 +16,32 @@ class MemoryNotebook extends Notebook {
 }
 
 void main() {
+  testWidgets('创作页进入修图和历史，未配置时阻止上传', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [notebookProvider.overrideWith(MemoryNotebook.new)],
+        child: const PicPic(demo: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('创作').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('照片 Studio'));
+    await tester.pumpAndSettle();
+    for (final label in styles) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('云端服务尚未配置'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, '上传并生成'))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(find.byTooltip('生成历史'));
+    await tester.pumpAndSettle();
+    expect(find.text('云端服务尚未配置'), findsOneWidget);
+  });
   testWidgets('从首页搜索姿势并进入对应取景器', (tester) async {
     await tester.pumpWidget(
       ProviderScope(

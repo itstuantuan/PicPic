@@ -238,6 +238,8 @@ class _ViewfinderState extends State<Viewfinder> {
       ),
     );
     if (result != null && mounted) {
+      await guideKey.currentState?.suspend();
+      if (!mounted) return;
       setState(() {
         widget.onUse?.call(result);
         pose = result;
@@ -413,18 +415,19 @@ class _ViewfinderState extends State<Viewfinder> {
                           label: Text(pose.steps[step]),
                         ),
                       if (session?.controller case final camera?
-                          when !preview && Pose.rigs.containsKey(pose.id))
+                          when !preview && pose.supportsGuidance)
                         LiveGuide(
                           key: guideKey,
                           camera: camera,
-                          reference: Pose.rigs[pose.id]!,
+                          references:
+                              Pose.duoRigs[pose.id] ?? [Pose.rigs[pose.id]!],
                           aspect: pose.aspectRatio,
                           flip: mirrored,
                           angle: angle,
                         ),
                       if (!preview &&
                           session?.controller != null &&
-                          !Pose.rigs.containsKey(pose.id))
+                          !pose.supportsGuidance)
                         const Text(
                           '此姿势可手动对齐',
                           style: TextStyle(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'features/catalog.dart';
+import 'features/studio_pages.dart';
 import 'features/custom_pose.dart';
 import 'features/camera.dart';
 import 'features/notebook.dart';
@@ -102,6 +103,19 @@ class _PicPicState extends State<PicPic> {
       GoRoute(
         path: '/plans/:id',
         builder: (_, s) => PlanDetail(int.parse(s.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/ai/edit',
+        builder: (_, _) => const StudioPage(scene: false),
+      ),
+      GoRoute(
+        path: '/ai/scene',
+        builder: (_, _) => const StudioPage(scene: true),
+      ),
+      GoRoute(path: '/ai/history', builder: (_, _) => const HistoryPage()),
+      GoRoute(
+        path: '/ai/task/:id',
+        builder: (_, s) => JobPage(s.pathParameters['id']!),
       ),
       GoRoute(path: '/custom', builder: (_, _) => const CustomPosePage()),
       GoRoute(path: '/photos', builder: (_, _) => const PhotoPage()),

@@ -24,6 +24,8 @@ class Pose {
   final List<String> steps;
   final String? svg;
   static final rigs = <String, Rig>{};
+  static final duoRigs = <String, List<Rig>>{};
+  bool get supportsGuidance => rigs.containsKey(id) || duoRigs.containsKey(id);
   static Pose fromCustom(String id, String name, String svg, double aspect) =>
       Pose(id, '自定义', name, '', aspect, .62, [
         '观察身体朝向',
@@ -319,18 +321,26 @@ class Pose {
     ) as Map<String, dynamic>;
     final studies = data.entries.map((e) {
       final p = e.value;
-      if (p['people'] == 1) {
+      final people = <Rig>[];
+      for (final person in p['joints']) {
         // The illustrated templates label sides as seen by the photographer.
-        rigs[e.key] = decodeRig(p['joints'][0]).map(
-          (k, v) => MapEntry(
-            k.startsWith('l')
-                ? 'r${k.substring(1)}'
-                : k.startsWith('r')
-                ? 'l${k.substring(1)}'
-                : k,
-            v,
+        people.add(
+          decodeRig(person).map(
+            (k, v) => MapEntry(
+              k.startsWith('l')
+                  ? 'r${k.substring(1)}'
+                  : k.startsWith('r')
+                  ? 'l${k.substring(1)}'
+                  : k,
+              v,
+            ),
           ),
         );
+      }
+      if (people.length == 1) {
+        rigs[e.key] = people.single;
+      } else {
+        duoRigs[e.key] = people;
       }
       return Pose(
         e.key,
