@@ -1,7 +1,7 @@
 """Build PicPic's illustrated posing cards and their named 2D joint coordinates."""
 from pathlib import Path
-from html import escape
-import json, math
+import json
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets/studies"
@@ -93,20 +93,6 @@ def joints(legs, arms):
                 re=plus(rs,er),rw=plus(rs,wr),lh=hip_l,rh=hip_r,lk=knee_l,
                 rk=knee_r,la=ankle_l,ra=ankle_r)
 
-def figure(points):
-    def xy(k):return ' '.join(map(str,points[k]))
-    def chain(keys,thick):
-        return f'<polyline points="{" ".join(xy(k) for k in keys)}" stroke="url(#pearl)" fill="none" stroke-width="{thick}" stroke-linecap="round" stroke-linejoin="round"/>'
-    body=''
-    for leg in ('l','r'):
-        body+=chain([leg+'h',leg+'k'],16)+chain([leg+'k',leg+'a'],12)
-        x,y=points[leg+'a'];body+=f'<ellipse cx="{x+2}" cy="{y+3}" rx="8" ry="4" fill="#b8b8ba"/>'
-    body+=f'<polygon points="{xy("ls")} {xy("rs")} {xy("rh")} {xy("lh")}" fill="url(#pearl)" stroke="#a2a2a4" stroke-width="5" stroke-linejoin="round"/>'
-    x,y=points['head'];body+=f'<ellipse cx="{x}" cy="{y}" rx="11" ry="15" fill="url(#pearl)"/>'
-    for arm in ('l','r'):
-        body+=chain([arm+'s',arm+'e'],10)+chain([arm+'e',arm+'w'],8)
-    return body
-
 def write(i,title,cat,people,steps):
     skeletons=[joints(l,a) for l,a in people]
     if len(people)==2:
@@ -118,8 +104,6 @@ def write(i,title,cat,people,steps):
     x0=min(x for x,y in coords)-18;y0=min(y for x,y in coords)-20
     w=max(x for x,y in coords)-x0+18;h=max(y for x,y in coords)-y0+14
     name=f'study_{i:02}'
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="{x0} {y0} {w} {h}"><defs><linearGradient id="pearl"><stop stop-color="#a2a2a4"/><stop offset=".48" stop-color="#e8e8e8"/><stop offset="1" stop-color="#aaa9ad"/></linearGradient></defs>'+''.join(map(figure,skeletons))+'</svg>'
-    (OUT/f'{name}.svg').write_text(svg)
     records[name]=dict(title=title,category=cat,people=len(people),steps=steps,aspect=w/h,
                         joints=[{k:[round((x-x0)/w,5),round((y-y0)/h,5)] for k,(x,y) in pts.items()} for pts in skeletons])
 
@@ -130,3 +114,5 @@ for legs,category,actions in SINGLES:
 for title,category,l1,a1,l2,a2 in PAIRS:
     write(len(records)+1,title,category,[(l1,a1),(l2,a2)],['两个人分别站在画面左右','左侧：'+l1+'，'+a1,'右侧：'+l2+'，'+a2])
 (OUT/'landmarks.json').write_text(json.dumps(records,ensure_ascii=False,indent=1)+'\n')
+
+subprocess.run(["swift", "tool/render_studies.swift"], cwd=ROOT, check=True)

@@ -15,7 +15,8 @@ void main() {
     expect(Pose.values.map((p) => p.id).toSet().length, 100);
     expect(Pose.values.map((p) => p.asset).toSet().length, 100);
     for (final pose in Pose.values) {
-      expect((await rootBundle.load(pose.asset)).lengthInBytes, greaterThan(0));
+      final bytes = await rootBundle.load(pose.asset);
+      expect(bytes.getUint32(0), 0x89504e47, reason: pose.id);
     }
   });
   test('版本一数据库升级后收藏仍在，自定义骨架可重新加载', () async {

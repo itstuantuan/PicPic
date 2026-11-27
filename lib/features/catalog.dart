@@ -346,14 +346,14 @@ class Pose {
         e.key,
         p['category'],
         p['title'],
-        'assets/studies/${e.key}.svg',
+        'assets/studies/${e.key}.png',
         (p['aspect'] as num).toDouble(),
         .58,
         List<String>.from(p['steps']),
         people: p['people'],
       );
     }).toList();
-    values.removeWhere((p) => p.asset.endsWith('.svg'));
+    values.removeWhere((p) => data.containsKey(p.id));
     values.addAll(studies);
   }
 
